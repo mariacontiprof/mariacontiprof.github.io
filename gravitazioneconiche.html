@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulatore Gravitazionale & Sezioni Coniche</title>
+    <!-- Tailwind CSS per uno stile moderno e reattivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax per il rendering elegante delle equazioni matematiche -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- FontAwesome per le icone -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #0b0f19;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        canvas {
+            touch-action: none;
+            cursor: crosshair;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        .badge-circle { background-color: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
+        .badge-ellipse { background-color: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+        .badge-parabola { background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+        .badge-hyperbola { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- SIDEBAR CONTROLLI -->
+    <aside class="w-full md:w-96 bg-slate-900 border-r border-slate-800 flex flex-col h-auto md:h-full z-10 custom-scrollbar overflow-y-auto">
+        <!-- Intestazione -->
+        <div class="p-4 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-orbit text-indigo-400"></i> Traiettorie coniche e la Legge di Gravitazione
+                </h1>
+                <p class="text-xs text-slate-400">Legge di Gravitazione & Coniche</p>
+            </div>
+            <button id="btnInfo" class="text-slate-400 hover:text-white transition-colors p-2 rounded-lg bg-slate-800" title="Teoria e Formule">
+                <i class="fa-solid fa-book-open"></i>
+            </button>
+        </div>
+
+        <div class="p-4 space-y-5 flex-1">
+            
+            <!-- Preset veloci -->
+            <div>
+                <label class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 block">Traiettorie Coniche (già pronte)</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="presetCircle" class="px-3 py-2 text-xs font-medium bg-slate-800 hover:bg-blue-600/20 hover:border-blue-500 border border-slate-700 rounded-lg text-blue-300 transition-all text-left flex items-center justify-between">
+                        <span><i class="fa-regular fa-circle mr-1"></i> Circolare</span>
+                        <span class="text-[10px] opacity-60">e = 0</span>
+                    </button>
+                    <button id="presetEllipse" class="px-3 py-2 text-xs font-medium bg-slate-800 hover:bg-emerald-600/20 hover:border-emerald-500 border border-slate-700 rounded-lg text-emerald-300 transition-all text-left flex items-center justify-between">
+                        <span><i class="fa-solid fa-egg mr-1"></i> Ellittica</span>
+                        <span class="text-[10px] opacity-60">0 &lt; e &lt; 1</span>
+                    </button>
+                    <button id="presetParabola" class="px-3 py-2 text-xs font-medium bg-slate-800 hover:bg-amber-600/20 hover:border-amber-500 border border-slate-700 rounded-lg text-amber-300 transition-all text-left flex items-center justify-between">
+                        <span><i class="fa-solid fa-bezier-curve mr-1"></i> Parabolica</span>
+                        <span class="text-[10px] opacity-60">e = 1</span>
+                    </button>
+                    <button id="presetHyperbola" class="px-3 py-2 text-xs font-medium bg-slate-800 hover:bg-rose-600/20 hover:border-rose-500 border border-slate-700 rounded-lg text-rose-300 transition-all text-left flex items-center justify-between">
+                        <span><i class="fa-solid fa-arrows-split-up-and-left mr-1"></i> Iperbolica</span>
+                        <span class="text-[10px] opacity-60">e &gt; 1</span>
+                    </button>
+                </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <!-- PARAMETRI FISICI DELLE DUE LEGGI -->
+            <div class="space-y-4">
+                <label class="text-xs font-semibold uppercase tracking-wider text-indigo-400 block font-bold">
+                    Parametri della legge gravitazionale e della 2a Newton <span class="text-[10px] text-slate-400 font-normal block lowercase">(G = 1 costante)</span>
+                </label>
+                
+                <!-- Massa Attrattrice M -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Massa Attrattrice ($M$):</span>
+                        <span id="valM" class="font-mono text-indigo-400 font-bold">1000</span>
+                    </div>
+                    <input type="range" id="sliderM" min="100" max="5000" step="50" value="1000" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                </div>
+
+                <!-- Massa Corpo Orbitante m -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Massa Corpo ($m$):</span>
+                        <span id="valm" class="font-mono text-cyan-400 font-bold">10</span>
+                    </div>
+                    <input type="range" id="sliderm" min="1" max="100" step="1" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                </div>
+
+                <!-- Distanza Iniziale r0 -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Distanza Iniziale ($r_0$):</span>
+                        <span id="valR" class="font-mono text-indigo-400 font-bold">200 px</span>
+                    </div>
+                    <input type="range" id="sliderR" min="50" max="400" step="5" value="200" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                </div>
+
+                <!-- Velocità Iniziale v0 -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Velocità Iniziale ($v_0$):</span>
+                        <span id="valV" class="font-mono text-emerald-400 font-bold">2.24 unit</span>
+                    </div>
+                    <input type="range" id="sliderV" min="0" max="10" step="0.05" value="2.24" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+                </div>
+
+                <!-- Angolo Velocità -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Angolo Lancio ($\theta$):</span>
+                        <span id="valAngle" class="font-mono text-amber-400 font-bold">90°</span>
+                    </div>
+                    <input type="range" id="sliderAngle" min="0" max="360" step="1" value="90" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500">
+                </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <!-- OPZIONI GRAFICHE TRAIETTORIA -->
+            <div class="space-y-2">
+                <label class="text-xs font-semibold uppercase tracking-wider text-slate-400 block">Visualizzazione Traiettoria</label>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <label class="flex items-center gap-2 bg-slate-800/60 p-2 rounded cursor-pointer hover:bg-slate-800">
+                        <input type="checkbox" id="chkPredictedPath" checked class="rounded accent-indigo-500">
+                        <span class="text-indigo-300">Traiettoria teorica</span>
+                    </label>
+                    <label class="flex items-center gap-2 bg-slate-800/60 p-2 rounded cursor-pointer hover:bg-slate-800">
+                        <input type="checkbox" id="chkGrid" checked class="rounded accent-slate-500">
+                        <span class="text-slate-400">Griglia spaziale</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- CONTROLLI SIMULAZIONE -->
+            <div class="pt-2 flex gap-2">
+                <button id="btnPlayPause" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors">
+                    <i class="fa-solid fa-play" id="playIcon"></i> <span id="playText">Avvia</span>
+                </button>
+                <button id="btnReset" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg transition-colors" title="Azzera Simulazione">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+
+            <!-- LIVE METRICS CARD -->
+            <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-400">Tipo di Conica:</span>
+                    <span id="conicBadge" class="px-2 py-0.5 text-xs font-bold rounded-full badge-circle">Circonferenza</span>
+                </div>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono pt-2 border-t border-slate-800/80">
+                    <div>
+                        <span class="text-slate-500 block text-[10px]">FORZA $F = G \frac{Mm}{r^2}$</span>
+                        <span id="metricF" class="text-rose-400 font-bold">0.25</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px]">ACCELERAZ. $a = \frac{F}{m}$</span>
+                        <span id="metricA" class="text-amber-300 font-bold">0.025</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px]">ECCENTRICITÀ ($e$)</span>
+                        <span id="metricE" class="text-slate-200 font-bold">0.00</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px]">ENERGIA SPECIFICA ($\varepsilon$)</span>
+                        <span id="metricEnergy" class="text-slate-200 font-bold">-0.50</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </aside>
+
+    <!-- AREA PRINCIPALE: CANVAS & MODALE -->
+    <main class="flex-1 relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+        
+        <!-- Canvas principale -->
+        <canvas id="simCanvas" class="w-full h-full block"></canvas>
+
+        <!-- Overlay Suggerimento Drag -->
+        <div class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-xs pointer-events-none flex items-center gap-2 shadow-lg">
+            <i class="fa-solid fa-hand-pointer text-indigo-400"></i>
+            <span>Trascina il corpo per riposizionarlo nello spazio!</span>
+        </div>
+
+        <!-- Speed control overlay -->
+        <div class="absolute bottom-4 right-4 bg-slate-900/90 border border-slate-800 rounded-lg p-2 flex items-center gap-3 text-xs text-slate-300 shadow-xl">
+            <span>Velocità sim:</span>
+            <input type="range" id="sliderSpeed" min="0.1" max="3" step="0.1" value="1" class="w-20 accent-indigo-500 cursor-pointer">
+            <span id="valSpeed" class="font-mono text-indigo-400 w-8">1.0x</span>
+        </div>
+
+        <!-- MODALE TEORICA E SPIEGAZIONE FISICA -->
+        <div id="infoModal" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-slate-900 border border-slate-800 max-w-2xl w-full max-h-[85vh] rounded-2xl p-6 overflow-y-auto custom-scrollbar shadow-2xl relative">
+                <button id="btnCloseModal" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-graduation-cap text-indigo-400"></i> Dalla Dinamica alle Coniche
+                </h2>
+
+                <div class="space-y-4 text-sm text-slate-300 leading-relaxed">
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 space-y-2">
+                        <h3 class="font-semibold text-indigo-300">1. Legge di Gravitazione & 2ª Legge della Dinamica</h3>
+                        <p>
+                            La forza gravitazionale fra la massa attrattrice $M$ e la massa dell'oggetto $m$ è:
+                        </p>
+                        <p class="text-center font-mono text-indigo-200 my-2">
+                            $$F = G \frac{M \cdot m}{r^2}$$
+                        </p>
+                        <p>
+                            Dalla 2ª Legge della Dinamica ($F = m \cdot a$), ricaviamo l'accelerazione dell'oggetto:
+                        </p>
+                        <p class="text-center font-mono text-emerald-300 my-2">
+                            $$a = \frac{F}{m} = \frac{G \cdot M}{r^2}$$
+                        </p>
+                        <p class="text-xs text-slate-400 italic">
+                            Nota come la massa dell'oggetto $m$ si elida nell'accelerazione: oggetti di massa $m$ diversa seguono la stessa identica traiettoria con le medesime condizioni iniziali!
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 space-y-2">
+                        <h3 class="font-semibold text-indigo-300">2. Emergenza delle Coniche</h3>
+                        <p>
+                            Dall'integrazione dell'accelerazione nel tempo, la traiettoria risultante $r(\theta)$ è sempre una sezione conica con equazione polare:
+                        </p>
+                        <p class="text-center font-mono text-amber-200 my-2">
+                            $$r(\theta) = \frac{p}{1 + e \cos\theta}$$
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-6 text-right">
+                    <button id="btnUnderstand" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg transition-colors">
+                        Ho Capito!
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Physics constants & variables
+        const G_const = 1; // Fixed to 1 so speed range 0-10 covers all conics
+        const DT_BASE = 0.04; // Time step base for smooth motion
+
+        // Canvas Elements
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Simulation State
+        let isRunning = false;
+        let simSpeed = 1.0;
+        let trail = []; // Store past position points
+        const maxTrailLength = 1200;
+
+        // Central Body (Sun/Planet)
+        const centralBody = {
+            x: 0,
+            y: 0,
+            mass: 1000,
+            radius: 18
+        };
+
+        // Satellite/Orbiter Body
+        const orbiter = {
+            x: 200,
+            y: 0,
+            vx: 0,
+            vy: 2.236,
+            radius: 6,
+            mass: 10
+        };
+
+        // UI Dragging State
+        let isDraggingOrbiter = false;
+
+        function resizeCanvas() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            centralBody.x = canvas.width / 2;
+            centralBody.y = canvas.height / 2;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function toPhysicsCoords(cx, cy) {
+            return {
+                x: cx - centralBody.x,
+                y: -(cy - centralBody.y)
+            };
+        }
+
+        function toCanvasCoords(px, py) {
+            return {
+                x: centralBody.x + px,
+                y: centralBody.y - py
+            };
+        }
+
+        // Calculate orbital elements & physics properties based on G, M, m, r, v
+        function getPhysicsProperties() {
+            const rx = orbiter.x;
+            const ry = orbiter.y;
+            const vx = orbiter.vx;
+            const vy = orbiter.vy;
+
+            const r = Math.sqrt(rx * rx + ry * ry);
+            const v = Math.sqrt(vx * vx + vy * vy);
+            const mu = G_const * centralBody.mass;
+
+            // Gravitational Force F = G * M * m / r^2
+            const force = (G_const * centralBody.mass * orbiter.mass) / Math.max(r * r, 1);
+            // Acceleration a = F / m = G * M / r^2
+            const accel = force / orbiter.mass;
+
+            // Specific Orbital Energy: E = v^2/2 - mu/r
+            const energy = (v * v) / 2 - mu / Math.max(r, 1);
+
+            // Specific Angular Momentum
+            const h = rx * vy - ry * vx;
+
+            // Eccentricity
+            const eSq = 1 + (2 * energy * h * h) / (mu * mu);
+            const eccentricity = Math.sqrt(Math.max(0, eSq));
+
+            // Escape velocity
+            const vEsc = Math.sqrt((2 * mu) / Math.max(r, 1));
+
+            return { r, v, force, accel, energy, eccentricity, h, mu, vEsc };
+        }
+
+        // Physics step using Velocity Verlet
+        function updatePhysics(dt) {
+            if (dt <= 0) return;
+
+            const mu = G_const * centralBody.mass;
+            let rSq = orbiter.x * orbiter.x + orbiter.y * orbiter.y;
+            let r = Math.sqrt(rSq);
+
+            if (r < centralBody.radius) {
+                isRunning = false;
+                updatePlayButton();
+                return;
+            }
+
+            let ax1 = -mu * orbiter.x / (rSq * r);
+            let ay1 = -mu * orbiter.y / (rSq * r);
+
+            orbiter.x += orbiter.vx * dt + 0.5 * ax1 * dt * dt;
+            orbiter.y += orbiter.vy * dt + 0.5 * ay1 * dt * dt;
+
+            rSq = orbiter.x * orbiter.x + orbiter.y * orbiter.y;
+            r = Math.sqrt(rSq);
+            let ax2 = -mu * orbiter.x / (rSq * r);
+            let ay2 = -mu * orbiter.y / (rSq * r);
+
+            orbiter.vx += 0.5 * (ax1 + ax2) * dt;
+            orbiter.vy += 0.5 * (ay1 + ay2) * dt;
+
+            trail.push({ x: orbiter.x, y: orbiter.y });
+            if (trail.length > maxTrailLength) {
+                trail.shift();
+            }
+        }
+
+        function drawGrid() {
+            if (!document.getElementById('chkGrid').checked) return;
+
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+
+            const step = 50;
+            const offsetX = centralBody.x % step;
+            const offsetY = centralBody.y % step;
+
+            ctx.beginPath();
+            for (let x = offsetX; x < canvas.width; x += step) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+            }
+            for (let y = offsetY; y < canvas.height; y += step) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+            }
+            ctx.stroke();
+
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(0, centralBody.y);
+            ctx.lineTo(canvas.width, centralBody.y);
+            ctx.moveTo(centralBody.x, 0);
+            ctx.lineTo(centralBody.x, canvas.height);
+            ctx.stroke();
+        }
+
+        function drawTheoreticalPath() {
+            if (!document.getElementById('chkPredictedPath').checked) return;
+
+            const phys = getPhysicsProperties();
+            const { eccentricity, h, mu } = phys;
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(99, 102, 241, 0.45)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+
+            ctx.beginPath();
+
+            const rx = orbiter.x, ry = orbiter.y;
+            const vx = orbiter.vx, vy = orbiter.vy;
+            const r = Math.sqrt(rx * rx + ry * ry);
+            
+            const ex = (vy * h) / mu - rx / r;
+            const ey = (-vx * h) / mu - ry / r;
+            const omega = Math.atan2(ey, ex);
+
+            const p = (h * h) / mu;
+
+            let startTheta = 0;
+            let endTheta = 2 * Math.PI;
+
+            if (eccentricity >= 1.0) {
+                const arg = Math.max(-0.9999, Math.min(0, -1 / eccentricity));
+                const maxTheta = Math.acos(arg) - 0.02;
+                startTheta = -maxTheta;
+                endTheta = maxTheta;
+            }
+
+            let first = true;
+            const steps = 300;
+            for (let i = 0; i <= steps; i++) {
+                const theta = startTheta + (i / steps) * (endTheta - startTheta);
+                const rTheta = p / (1 + eccentricity * Math.cos(theta));
+                if (rTheta < 0 || rTheta > 3000) continue;
+
+                const phi = theta + omega;
+                const px = rTheta * Math.cos(phi);
+                const py = rTheta * Math.sin(phi);
+
+                const cPos = toCanvasCoords(px, py);
+
+                if (first) {
+                    ctx.moveTo(cPos.x, cPos.y);
+                    first = false;
+                } else {
+                    ctx.lineTo(cPos.x, cPos.y);
+                }
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawTrail() {
+            if (trail.length < 2) return;
+
+            ctx.save();
+            ctx.lineWidth = 2.5;
+            
+            for (let i = 1; i < trail.length; i++) {
+                const alpha = i / trail.length;
+                ctx.strokeStyle = `rgba(129, 140, 248, ${alpha * 0.85})`;
+                ctx.beginPath();
+                const p1 = toCanvasCoords(trail[i - 1].x, trail[i - 1].y);
+                const p2 = toCanvasCoords(trail[i].x, trail[i].y);
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function render() {
+            ctx.fillStyle = '#0b0f19';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawGrid();
+            drawTheoreticalPath();
+            drawTrail();
+
+            // Central Body
+            const sunGlow = ctx.createRadialGradient(
+                centralBody.x, centralBody.y, 2,
+                centralBody.x, centralBody.y, centralBody.radius * 2.5
+            );
+            sunGlow.addColorStop(0, '#fef08a');
+            sunGlow.addColorStop(0.4, '#f59e0b');
+            sunGlow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+
+            ctx.fillStyle = sunGlow;
+            ctx.beginPath();
+            ctx.arc(centralBody.x, centralBody.y, centralBody.radius * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fbbf24';
+            ctx.beginPath();
+            ctx.arc(centralBody.x, centralBody.y, centralBody.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Orbiter Body
+            const orbiterCanvasPos = toCanvasCoords(orbiter.x, orbiter.y);
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.shadowColor = '#0284c7';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(orbiterCanvasPos.x, orbiterCanvasPos.y, orbiter.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        function updateMetricsUI() {
+            const phys = getPhysicsProperties();
+
+            document.getElementById('metricF').innerText = phys.force.toFixed(2);
+            document.getElementById('metricA').innerText = phys.accel.toFixed(3);
+            document.getElementById('metricEnergy').innerText = phys.energy.toFixed(3);
+            document.getElementById('metricE').innerText = phys.eccentricity.toFixed(3);
+
+            const badge = document.getElementById('conicBadge');
+            const e = phys.eccentricity;
+
+            badge.className = "px-2.5 py-0.5 text-xs font-bold rounded-full ";
+
+            if (phys.r < centralBody.radius) {
+                badge.innerText = "Collisione";
+                badge.classList.add("bg-rose-900/40", "text-rose-300", "border", "border-rose-700");
+            } else if (Math.abs(e) < 0.03) {
+                badge.innerText = "Circonferenza (e ≈ 0)";
+                badge.classList.add("badge-circle");
+            } else if (e < 0.98) {
+                badge.innerText = "Ellisse (0 < e < 1)";
+                badge.classList.add("badge-ellipse");
+            } else if (e >= 0.98 && e <= 1.02) {
+                badge.innerText = "Parabola (e ≈ 1)";
+                badge.classList.add("badge-parabola");
+            } else {
+                badge.innerText = "Iperbole (e > 1)";
+                badge.classList.add("badge-hyperbola");
+            }
+        }
+
+        function syncControlsFromState() {
+            const r = Math.sqrt(orbiter.x * orbiter.x + orbiter.y * orbiter.y);
+            const v = Math.sqrt(orbiter.vx * orbiter.vx + orbiter.vy * orbiter.vy);
+            let angle = Math.atan2(orbiter.vy, orbiter.vx) * (180 / Math.PI);
+            if (angle < 0) angle += 360;
+
+            document.getElementById('sliderM').value = centralBody.mass;
+            document.getElementById('valM').innerText = centralBody.mass;
+
+            document.getElementById('sliderm').value = orbiter.mass;
+            document.getElementById('valm').innerText = orbiter.mass;
+
+            document.getElementById('sliderR').value = r;
+            document.getElementById('valR').innerText = r.toFixed(0) + ' px';
+
+            document.getElementById('sliderV').value = v;
+            document.getElementById('valV').innerText = v.toFixed(2) + ' unit';
+
+            document.getElementById('sliderAngle').value = angle;
+            document.getElementById('valAngle').innerText = angle.toFixed(0) + '°';
+        }
+
+        function applyControlsToState() {
+            centralBody.mass = parseFloat(document.getElementById('sliderM').value);
+            orbiter.mass = parseFloat(document.getElementById('sliderm').value);
+
+            const r = parseFloat(document.getElementById('sliderR').value);
+            const v = parseFloat(document.getElementById('sliderV').value);
+            const angleDeg = parseFloat(document.getElementById('sliderAngle').value);
+
+            const angleRad = angleDeg * (Math.PI / 180);
+
+            orbiter.x = r;
+            orbiter.y = 0;
+            orbiter.vx = v * Math.cos(angleRad);
+            orbiter.vy = v * Math.sin(angleRad);
+
+            trail = [];
+            updateMetricsUI();
+        }
+
+        function applyPreset(type) {
+            const r = 200;
+            const M = 1000;
+            centralBody.mass = M;
+            orbiter.mass = 10;
+            const mu = G_const * M;
+            const vCirc = Math.sqrt(mu / r); // ~2.24
+
+            orbiter.x = r;
+            orbiter.y = 0;
+
+            if (type === 'circle') {
+                orbiter.vx = 0;
+                orbiter.vy = vCirc; // e = 0
+            } else if (type === 'ellipse') {
+                orbiter.vx = 0;
+                orbiter.vy = vCirc * 0.7; // e ≈ 0.5
+            } else if (type === 'parabola') {
+                orbiter.vx = 0;
+                orbiter.vy = Math.sqrt((2 * mu) / r); // e = 1 (v_esc ≈ 3.16)
+            } else if (type === 'hyperbola') {
+                orbiter.vx = 0;
+                orbiter.vy = Math.sqrt((2 * mu) / r) * 1.4; // e > 1 (v ≈ 4.43)
+            }
+
+            trail = [];
+            syncControlsFromState();
+            updateMetricsUI();
+        }
+
+        // Sliders
+        document.getElementById('sliderM').addEventListener('input', (e) => {
+            document.getElementById('valM').innerText = e.target.value;
+            applyControlsToState();
+        });
+
+        document.getElementById('sliderm').addEventListener('input', (e) => {
+            document.getElementById('valm').innerText = e.target.value;
+            applyControlsToState();
+        });
+
+        document.getElementById('sliderR').addEventListener('input', (e) => {
+            document.getElementById('valR').innerText = e.target.value + ' px';
+            applyControlsToState();
+        });
+
+        document.getElementById('sliderV').addEventListener('input', (e) => {
+            document.getElementById('valV').innerText = e.target.value + ' unit';
+            applyControlsToState();
+        });
+
+        document.getElementById('sliderAngle').addEventListener('input', (e) => {
+            document.getElementById('valAngle').innerText = e.target.value + '°';
+            applyControlsToState();
+        });
+
+        document.getElementById('sliderSpeed').addEventListener('input', (e) => {
+            simSpeed = parseFloat(e.target.value);
+            document.getElementById('valSpeed').innerText = simSpeed.toFixed(1) + 'x';
+        });
+
+        // Presets
+        document.getElementById('presetCircle').addEventListener('click', () => applyPreset('circle'));
+        document.getElementById('presetEllipse').addEventListener('click', () => applyPreset('ellipse'));
+        document.getElementById('presetParabola').addEventListener('click', () => applyPreset('parabola'));
+        document.getElementById('presetHyperbola').addEventListener('click', () => applyPreset('hyperbola'));
+
+        // Play / Pause
+        function updatePlayButton() {
+            const playIcon = document.getElementById('playIcon');
+            const playText = document.getElementById('playText');
+            const btn = document.getElementById('btnPlayPause');
+
+            if (isRunning) {
+                playIcon.className = "fa-solid fa-pause";
+                playText.innerText = "Pausa";
+                btn.className = "flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors";
+            } else {
+                playIcon.className = "fa-solid fa-play";
+                playText.innerText = "Avvia";
+                btn.className = "flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors";
+            }
+        }
+
+        document.getElementById('btnPlayPause').addEventListener('click', () => {
+            isRunning = !isRunning;
+            updatePlayButton();
+        });
+
+        document.getElementById('btnReset').addEventListener('click', () => {
+            isRunning = false;
+            updatePlayButton();
+            applyControlsToState();
+        });
+
+        // Modal
+        document.getElementById('btnInfo').addEventListener('click', () => {
+            document.getElementById('infoModal').classList.remove('hidden');
+        });
+        document.getElementById('btnCloseModal').addEventListener('click', () => {
+            document.getElementById('infoModal').classList.add('hidden');
+        });
+        document.getElementById('btnUnderstand').addEventListener('click', () => {
+            document.getElementById('infoModal').classList.add('hidden');
+        });
+
+        // Pointer interactions for positioning orbiter
+        canvas.addEventListener('pointerdown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseCanvasX = e.clientX - rect.left;
+            const mouseCanvasY = e.clientY - rect.top;
+
+            const orbiterCanvasPos = toCanvasCoords(orbiter.x, orbiter.y);
+            const distToOrbiter = Math.hypot(mouseCanvasX - orbiterCanvasPos.x, mouseCanvasY - orbiterCanvasPos.y);
+
+            if (distToOrbiter < 18) {
+                isDraggingOrbiter = true;
+                isRunning = false;
+                updatePlayButton();
+            }
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (isDraggingOrbiter) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseCanvasX = e.clientX - rect.left;
+                const mouseCanvasY = e.clientY - rect.top;
+
+                const physCoords = toPhysicsCoords(mouseCanvasX, mouseCanvasY);
+                orbiter.x = physCoords.x;
+                orbiter.y = physCoords.y;
+                trail = [];
+                syncControlsFromState();
+                updateMetricsUI();
+            }
+        });
+
+        window.addEventListener('pointerup', () => {
+            isDraggingOrbiter = false;
+        });
+
+        // Main Loop
+        let lastTime = performance.now();
+
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+
+            const dtRaw = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            if (isRunning) {
+                const subSteps = 10;
+                const dt = (DT_BASE * simSpeed) / subSteps;
+                for (let i = 0; i < subSteps; i++) {
+                    updatePhysics(dt);
+                }
+                updateMetricsUI();
+            }
+
+            render();
+        }
+
+        applyPreset('circle');
+        requestAnimationFrame(animate);
+
+    </script>
+</body>
+</html>
