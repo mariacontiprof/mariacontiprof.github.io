@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulazione Moto a Rosetta - Orbita di Marte</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        space: {
+                            950: '#070a13',
+                            900: '#0f172a',
+                            800: '#1e293b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #070a13;
+            color: #f1f5f9;
+            overflow-x: hidden;
+        }
+        canvas {
+            touch-action: none;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-space-950 text-slate-100">
+
+    <!-- Navigation / Header -->
+    <header class="border-b border-slate-800 bg-space-900/80 backdrop-blur sticky top-0 z-50 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/20">
+                    <i class="fa-solid font-bold text-slate-950 text-xl fa-atom"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold bg-gradient-to-r from-amber-200 via-rose-300 to-cyan-300 bg-clip-text text-transparent">
+                        Moto geocentrico (a rosetta) e Moto eliocentrico (ellisse)
+                    </h1>
+                    <p class="text-xs text-slate-400">Confronto tra Sistema Eliocentrico e Vista Geocentrica (Apparente)</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <span id="synodic-badge" class="px-3 py-1 rounded-full bg-slate-800 text-xs text-cyan-400 border border-cyan-500/30 font-mono">
+                    Anni Terrestri: <span id="years-counter">0.00</span>
+                </span>
+                <span id="opposition-badge" class="hidden px-3 py-1 rounded-full bg-rose-500/20 text-xs text-rose-300 border border-rose-500/40 font-semibold animate-pulse">
+                    ⚡ Opposizione (Moto Retrogrado)
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col gap-6">
+
+        <!-- Top Grid: Dual Canvas Simulation Viewports -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Panel 1: Heliocentric View -->
+            <div class="flex flex-col bg-space-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden relative group">
+                <div class="p-3 bg-slate-900/90 border-b border-slate-800 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-amber-400 inline-block shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span>
+                        <h2 class="font-semibold text-sm text-slate-200">Sistema Eliocentrico (Sole al Centro)</h2>
+                    </div>
+                    <span class="text-xs text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded-md border border-slate-700/50">
+                        Orbita Reale (Kepleriana)
+                    </span>
+                </div>
+                
+                <div class="relative flex-1 min-h-[360px] md:min-h-[420px] bg-black/40 flex items-center justify-center overflow-hidden">
+                    <canvas id="canvas-helio" class="w-full h-full block cursor-crosshair"></canvas>
+                    
+                    <!-- Overlay Info Legend -->
+                    <div class="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur px-3 py-2 rounded-lg border border-slate-800 text-xs space-y-1 text-slate-300 pointer-events-none">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                            <span>Sole</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
+                            <span>Terra ($r_1 = 1.0 \text{ UA}$)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                            <span>Marte (<span id="legend-mars-r">1.52</span> UA)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 bg-cyan-400/60 border-t border-dashed border-cyan-300"></span>
+                            <span>Linea di vista Terra-Marte</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 2: Geocentric View (The Rosetta Pattern) -->
+            <div class="flex flex-col bg-space-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden relative group">
+                <div class="p-3 bg-slate-900/90 border-b border-slate-800 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-blue-400 inline-block shadow-[0_0_8px_rgba(96,165,250,0.8)]"></span>
+                        <h2 class="font-semibold text-sm text-slate-200">Vista Geocentrica (Terra al Centro)</h2>
+                    </div>
+                    <span class="text-xs text-cyan-300 bg-cyan-950/60 border border-cyan-800 px-2.5 py-1 rounded-md font-mono">
+                        Moto a Rosetta / Epicicli
+                    </span>
+                </div>
+
+                <div class="relative flex-1 min-h-[360px] md:min-h-[420px] bg-black/40 flex items-center justify-center overflow-hidden">
+                    <canvas id="canvas-geo" class="w-full h-full block cursor-crosshair"></canvas>
+
+                    <!-- Overlay Info Legend -->
+                    <div class="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur px-3 py-2 rounded-lg border border-slate-800 text-xs space-y-1 text-slate-300 pointer-events-none">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
+                            <span>Terra (Fissa al centro)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                            <span>Posizione di Marte</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full border-2 border-cyan-400 bg-cyan-500/20"></span>
+                            <span>Traccia del moto (Rosetta)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400/80"></span>
+                            <span>Sole apparente (Orbita intorno alla Terra)</span>
+                        </div>
+                    </div>
+
+                    <button id="btn-clear-trace" class="absolute top-3 right-3 bg-slate-800/90 hover:bg-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1.5 shadow-lg">
+                        <i class="fa-solid fa-eraser text-cyan-400"></i> Cancellare Traccia
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Interactive Controls Dashboard -->
+        <div class="bg-space-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-5">
+            
+            <!-- Controls Header & Main Action Buttons -->
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+                <div class="flex items-center gap-3">
+                    <!-- Play/Pause -->
+                    <button id="btn-play" class="w-12 h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold flex items-center justify-center shadow-lg shadow-cyan-500/20 transition transform active:scale-95 text-lg">
+                        <i class="fa-solid fa-pause" id="play-icon"></i>
+                    </button>
+
+                    <!-- Reset -->
+                    <button id="btn-reset" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center border border-slate-700 transition active:scale-95">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+
+                    <!-- Step Frame -->
+                    <button id="btn-step" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center border border-slate-700 transition active:scale-95" title="Avanza di 1 frame">
+                        <i class="fa-solid fa-forward-step"></i>
+                    </button>
+                </div>
+
+                <!-- Simulation Speed presets -->
+                <div class="flex items-center gap-2 bg-slate-950/60 p-1.5 rounded-xl border border-slate-800">
+                    <span class="text-xs text-slate-400 font-medium px-2"><i class="fa-solid fa-gauge-high mr-1"></i>Velocità:</span>
+                    <button data-speed="0.2" class="btn-speed text-xs px-2.5 py-1 rounded-lg transition text-slate-400 hover:text-white">0.2x</button>
+                    <button data-speed="0.5" class="btn-speed text-xs px-2.5 py-1 rounded-lg transition text-slate-400 hover:text-white">0.5x</button>
+                    <button data-speed="1.0" class="btn-speed text-xs px-2.5 py-1 rounded-lg transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold">1.0x</button>
+                    <button data-speed="2.5" class="btn-speed text-xs px-2.5 py-1 rounded-lg transition text-slate-400 hover:text-white">2.5x</button>
+                    <button data-speed="5.0" class="btn-speed text-xs px-2.5 py-1 rounded-lg transition text-slate-400 hover:text-white">5.0x</button>
+                </div>
+            </div>
+
+            <!-- Parameters Sliders & Toggles -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Slider 1: Distance of Mars -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between items-center text-xs font-medium">
+                        <label for="slider-mars-r" class="text-slate-300">Raggio Orbitale Marte ($a$):</label>
+                        <span id="val-mars-r" class="font-mono text-cyan-400 font-bold">1.52 UA</span>
+                    </div>
+                    <input type="range" id="slider-mars-r" min="1.1" max="2.5" step="0.01" value="1.52" 
+                           class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                    <span class="text-[10px] text-slate-500">Terra = 1.0 UA (Legge di Keplero: $T = a^{1.5}$)</span>
+                </div>
+
+                <!-- Slider 2: Eccentricity -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between items-center text-xs font-medium">
+                        <label for="slider-ecc" class="text-slate-300">Eccentricità Orbita Marte ($e$):</label>
+                        <span id="val-ecc" class="font-mono text-rose-400 font-bold">0.093</span>
+                    </div>
+                    <input type="range" id="slider-ecc" min="0.0" max="0.4" step="0.005" value="0.093" 
+                           class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-400">
+                    <span class="text-[10px] text-slate-500">Un'eccentricità maggiore deforma i petali</span>
+                </div>
+
+                <!-- Slider 3: Trace Length -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between items-center text-xs font-medium">
+                        <label for="slider-trace-len" class="text-slate-300">Persistenza Traccia Rosetta:</label>
+                        <span id="val-trace-len" class="font-mono text-amber-400 font-bold">Infinita</span>
+                    </div>
+                    <input type="range" id="slider-trace-len" min="500" max="10000" step="500" value="10000" 
+                           class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400">
+                    <span class="text-[10px] text-slate-500">Lunghezza del percorso memorizzato</span>
+                </div>
+
+                <!-- Visual Toggles -->
+                <div class="flex flex-col justify-center gap-2 bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+                    <label class="flex items-center justify-between cursor-pointer text-xs text-slate-300">
+                        <span>Mostra Linee di Vista</span>
+                        <input type="checkbox" id="chk-sightlines" checked class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+                    </label>
+                    <label class="flex items-center justify-between cursor-pointer text-xs text-slate-300">
+                        <span>Mostra Orbita Apparente del Sole</span>
+                        <input type="checkbox" id="chk-sun-orbit" checked class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+                    </label>
+                    <label class="flex items-center justify-between cursor-pointer text-xs text-slate-300">
+                        <span>Effetto Scia Luminosa (Glow)</span>
+                        <input type="checkbox" id="chk-glow" checked class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+                    </label>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Educational Explanation Card -->
+        <article class="bg-space-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                Perché si forma la figura a Rosetta? (Il Moto Retrogrado)
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-slate-300 leading-relaxed">
+                <div class="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                    <h4 class="font-semibold text-cyan-300 mb-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-nodes"></i> 1. Velocità Orbitali Diverse
+                    </h4>
+                    <p>
+                        In accordo con la <strong>Terza Legge di Keplero</strong> ($T^2 \propto a^3$), i pianeti più vicini al Sole orbitano più velocemente di quelli esterni. La Terra completa un'orbita in 1 anno, mentre Marte impiega circa 1.88 anni terrestri.
+                    </p>
+                </div>
+
+                <div class="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                    <h4 class="font-semibold text-rose-300 mb-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-retweet"></i> 2. Il Sorpasso (Opposizione)
+                    </h4>
+                    <p>
+                        Quando la Terra "sorpassa" Marte nel punto di minimo distacco (Opposizione), dal punto di vista terrestre Marte sembra fermarsi, invertire il suo moto nel cielo per qualche settimana e poi riprendere il moto diretto.
+                    </p>
+                </div>
+
+                <div class="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                    <h4 class="font-semibold text-amber-300 mb-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-compass-drafting"></i> 3. La Geometria della Rosetta
+                    </h4>
+                    <p>
+                        Tracciando la posizione di Marte rispetto alla Terra ferma nel tempo, il moto combinato di due rotazioni a frequenze diverse crea una figura matematica detta <strong>Epitrocoide</strong> (la "Rosetta" o modello ad epicicli di Tolomeo).
+                    </p>
+                </div>
+            </div>
+        </article>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-space-950 py-4 text-center text-xs text-slate-500">
+        Simulazione Astronomica Interattiva &bull; Fisica & Meccanica Celeste
+    </footer>
+
+    <script>
+        // Canvas elements & Contexts
+        const canvasHelio = document.getElementById('canvas-helio');
+        const ctxHelio = canvasHelio.getContext('2d');
+        const canvasGeo = document.getElementById('canvas-geo');
+        const ctxGeo = canvasGeo.getContext('2d');
+
+        // Controls Elements
+        const btnPlay = document.getElementById('btn-play');
+        const playIcon = document.getElementById('play-icon');
+        const btnReset = document.getElementById('btn-reset');
+        const btnStep = document.getElementById('btn-step');
+        const btnClearTrace = document.getElementById('btn-clear-trace');
+        const speedButtons = document.querySelectorAll('.btn-speed');
+
+        const sliderMarsR = document.getElementById('slider-mars-r');
+        const sliderEcc = document.getElementById('slider-ecc');
+        const sliderTraceLen = document.getElementById('slider-trace-len');
+        
+        const valMarsR = document.getElementById('val-mars-r');
+        const valEcc = document.getElementById('val-ecc');
+        const valTraceLen = document.getElementById('val-trace-len');
+        const legendMarsR = document.getElementById('legend-mars-r');
+
+        const chkSightlines = document.getElementById('chk-sightlines');
+        const chkSunOrbit = document.getElementById('chk-sun-orbit');
+        const chkGlow = document.getElementById('chk-glow');
+
+        const yearsCounter = document.getElementById('years-counter');
+        const oppositionBadge = document.getElementById('opposition-badge');
+
+        // Simulation State
+        let isRunning = true;
+        let simSpeed = 1.0;
+        let time = 0; // in Earth years
+        let dt = 0.003; // base time increment per frame
+
+        // Orbital Parameters
+        const rEarth = 1.0; // AU
+        let aMars = parseFloat(sliderMarsR.value); // Semi-major axis AU
+        let eMars = parseFloat(sliderEcc.value);   // Eccentricity
+        let maxTracePoints = parseInt(sliderTraceLen.value);
+
+        // Position history for Geocentric Rosetta curve
+        let rosettePath = [];
+
+        function resizeCanvases() {
+            [canvasHelio, canvasGeo].forEach(canvas => {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+            });
+        }
+
+        window.addEventListener('resize', resizeCanvases);
+
+        // Keplerian orbit position calculator
+        // Returns position {x, y} relative to central body (Sun) in AU
+        function getPlanetPosition(a, e, orbitalPeriodYears, tYears) {
+            // Mean anomaly
+            const M = (2 * Math.PI * (tYears / orbitalPeriodYears)) % (2 * Math.PI);
+            
+            // Approximate Eccentric Anomaly E using Newton's method
+            let E = M;
+            for (let i = 0; i < 5; i++) {
+                E = E - (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+            }
+
+            // True Anomaly ν
+            const x_orb = a * (Math.cos(E) - e);
+            const y_orb = a * Math.sqrt(1 - e * e) * Math.sin(E);
+
+            return { x: x_orb, y: y_orb };
+        }
+
+        function resetSimulation() {
+            time = 0;
+            rosettePath = [];
+            updateUIValues();
+        }
+
+        function updateUIValues() {
+            aMars = parseFloat(sliderMarsR.value);
+            eMars = parseFloat(sliderEcc.value);
+            maxTracePoints = parseInt(sliderTraceLen.value);
+
+            valMarsR.textContent = `${aMars.toFixed(2)} UA`;
+            legendMarsR.textContent = aMars.toFixed(2);
+            valEcc.textContent = eMars.toFixed(3);
+            valTraceLen.textContent = maxTracePoints >= 10000 ? "Infinita" : `${maxTracePoints} pti`;
+        }
+
+        function drawBackground(ctx, width, height, title) {
+            ctx.save();
+            ctx.fillStyle = '#070a13';
+            ctx.fillRect(0, 0, width, height);
+
+            // Subtle orbital grid rings
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.25)';
+            ctx.lineWidth = 1;
+            const center = { x: width / 2, y: height / 2 };
+            const maxR = Math.min(width, height) * 0.45;
+
+            for (let r = maxR * 0.2; r <= maxR; r += maxR * 0.2) {
+                ctx.beginPath();
+                ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Crosshair axes
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.15)';
+            ctx.beginPath();
+            ctx.moveTo(center.x, 0); ctx.lineTo(center.x, height);
+            ctx.moveTo(0, center.y); ctx.lineTo(width, center.y);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function stepSimulation(advanceTime = true) {
+            if (advanceTime) {
+                time += dt * simSpeed;
+            }
+
+            // Earth Orbit: Circular, a = 1.0 AU, Period = 1.0 Year
+            const posEarth = getPlanetPosition(rEarth, 0.0, 1.0, time);
+
+            // Mars Orbit: Keplerian, Semi-major axis = aMars AU, Period = aMars^1.5 Years
+            const periodMars = Math.pow(aMars, 1.5);
+            const posMars = getPlanetPosition(aMars, eMars, periodMars, time);
+
+            // Geocentric position of Mars relative to Earth
+            const posMarsGeo = {
+                x: posMars.x - posEarth.x,
+                y: posMars.y - posEarth.y
+            };
+
+            // Geocentric position of Sun relative to Earth
+            const posSunGeo = {
+                x: -posEarth.x,
+                y: -posEarth.y
+            };
+
+            // Record Rosette path point
+            rosettePath.push({ ...posMarsGeo, time });
+            if (maxTracePoints < 10000 && rosettePath.length > maxTracePoints) {
+                rosettePath.shift();
+            }
+
+            // Calculate distance Earth-Mars to detect Opposition (Retrograde loop)
+            const distEM = Math.hypot(posMars.x - posEarth.x, posMars.y - posEarth.y);
+            const isOpposition = distEM < (aMars - rEarth + 0.18);
+
+            // Update Header badges
+            yearsCounter.textContent = time.toFixed(2);
+            if (isOpposition) {
+                oppositionBadge.classList.remove('hidden');
+            } else {
+                oppositionBadge.classList.add('hidden');
+            }
+
+            // Draw Heliocentric View
+            renderHeliocentric(posEarth, posMars);
+
+            // Draw Geocentric View
+            renderGeocentric(posMarsGeo, posSunGeo);
+        }
+
+        function renderHeliocentric(posEarth, posMars) {
+            const w = canvasHelio.width;
+            const h = canvasHelio.height;
+            const ctx = ctxHelio;
+
+            drawBackground(ctx, w, h);
+
+            const center = { x: w / 2, y: h / 2 };
+            // Scale: fit max orbit (aMars * (1+eMars)) within canvas
+            const maxDistanceAU = Math.max(2.6, aMars * (1 + eMars) * 1.15);
+            const scale = (Math.min(w, h) / 2 * 0.85) / maxDistanceAU;
+
+            ctx.save();
+            ctx.translate(center.x, center.y);
+
+            // Draw Earth Orbit Line
+            ctx.beginPath();
+            ctx.arc(0, 0, rEarth * scale, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(96, 165, 250, 0.3)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Draw Mars Orbit Line (Keplerian ellipse)
+            ctx.beginPath();
+            const periodMars = Math.pow(aMars, 1.5);
+            for (let step = 0; step <= 200; step++) {
+                const tStep = (step / 200) * periodMars;
+                const p = getPlanetPosition(aMars, eMars, periodMars, tStep);
+                if (step === 0) ctx.moveTo(p.x * scale, p.y * scale);
+                else ctx.lineTo(p.x * scale, p.y * scale);
+            }
+            ctx.strokeStyle = 'rgba(244, 63, 94, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Draw Sightline Earth -> Mars
+            if (chkSightlines.checked) {
+                ctx.beginPath();
+                ctx.moveTo(posEarth.x * scale, posEarth.y * scale);
+                ctx.lineTo(posMars.x * scale, posMars.y * scale);
+                ctx.strokeStyle = 'rgba(34, 211, 238, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Draw Sun
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.fillStyle = '#f59e0b';
+            if (chkGlow.checked) {
+                ctx.shadowColor = '#fbbf24';
+                ctx.shadowBlur = 18;
+            }
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Draw Earth
+            const ex = posEarth.x * scale;
+            const ey = posEarth.y * scale;
+            ctx.beginPath();
+            ctx.arc(ex, ey, 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#60a5fa';
+            if (chkGlow.checked) {
+                ctx.shadowColor = '#3b82f6';
+                ctx.shadowBlur = 12;
+            }
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Draw Mars
+            const mx = posMars.x * scale;
+            const my = posMars.y * scale;
+            ctx.beginPath();
+            ctx.arc(mx, my, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#f43f5e';
+            if (chkGlow.checked) {
+                ctx.shadowColor = '#f43f5e';
+                ctx.shadowBlur = 12;
+            }
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.restore();
+        }
+
+        function renderGeocentric(posMarsGeo, posSunGeo) {
+            const w = canvasGeo.width;
+            const h = canvasGeo.height;
+            const ctx = ctxGeo;
+
+            drawBackground(ctx, w, h);
+
+            const center = { x: w / 2, y: h / 2 };
+            // Scale: relative distance max is ~ rEarth + aMars*(1+eMars)
+            const maxDistanceAU = Math.max(2.6, (aMars * (1 + eMars) + rEarth) * 1.1);
+            const scale = (Math.min(w, h) / 2 * 0.85) / maxDistanceAU;
+
+            ctx.save();
+            ctx.translate(center.x, center.y);
+
+            // Apparent Sun Orbit (Circle around Earth)
+            if (chkSunOrbit.checked) {
+                ctx.beginPath();
+                ctx.arc(0, 0, rEarth * scale, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Apparent Sun position
+                ctx.beginPath();
+                ctx.arc(posSunGeo.x * scale, posSunGeo.y * scale, 7, 0, Math.PI * 2);
+                ctx.fillStyle = '#fbbf24';
+                if (chkGlow.checked) {
+                    ctx.shadowColor = '#fbbf24';
+                    ctx.shadowBlur = 10;
+                }
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            // Draw Sightline Earth (Center) -> Mars (Geocentric)
+            if (chkSightlines.checked) {
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(posMarsGeo.x * scale, posMarsGeo.y * scale);
+                ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            if (rosettePath.length > 1) {
+                ctx.beginPath();
+                for (let i = 0; i < rosettePath.length; i++) {
+                    const pt = rosettePath[i];
+                    const px = pt.x * scale;
+                    const py = pt.y * scale;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+
+                // Gradient / Vibrant line styling for the Rosetta path
+                ctx.strokeStyle = '#22d3ee';
+                ctx.lineWidth = 2;
+                if (chkGlow.checked) {
+                    ctx.shadowColor = '#06b6d4';
+                    ctx.shadowBlur = 10;
+                }
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+
+            // Draw Fixed Earth at Center (0,0)
+            ctx.beginPath();
+            ctx.arc(0, 0, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#60a5fa';
+            if (chkGlow.checked) {
+                ctx.shadowColor = '#3b82f6';
+                ctx.shadowBlur = 14;
+            }
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Draw Mars Position in Geocentric View
+            const mx = posMarsGeo.x * scale;
+            const my = posMarsGeo.y * scale;
+            ctx.beginPath();
+            ctx.arc(mx, my, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#f43f5e';
+            if (chkGlow.checked) {
+                ctx.shadowColor = '#f43f5e';
+                ctx.shadowBlur = 12;
+            }
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.restore();
+        }
+
+        function animate() {
+            if (isRunning) {
+                stepSimulation(true);
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // Toggle Play / Pause
+        btnPlay.addEventListener('click', () => {
+            isRunning = !isRunning;
+            playIcon.className = isRunning ? 'fa-solid fa-pause' : 'fa-solid fa-play ml-0.5';
+            btnPlay.classList.toggle('from-cyan-500', isRunning);
+            btnPlay.classList.toggle('from-emerald-500', !isRunning);
+        });
+
+        // Step 1 Frame
+        btnStep.addEventListener('click', () => {
+            isRunning = false;
+            playIcon.className = 'fa-solid fa-play ml-0.5';
+            stepSimulation(true);
+        });
+
+        // Reset
+        btnReset.addEventListener('click', () => {
+            resetSimulation();
+            stepSimulation(false);
+        });
+
+        // Clear Trace
+        btnClearTrace.addEventListener('click', () => {
+            rosettePath = [];
+            stepSimulation(false);
+        });
+
+        // Speed preset buttons
+        speedButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                speedButtons.forEach(b => {
+                    b.classList.remove('bg-cyan-500/20', 'text-cyan-300', 'border', 'border-cyan-500/40', 'font-semibold');
+                    b.classList.add('text-slate-400');
+                });
+                const selectedBtn = e.currentTarget;
+                selectedBtn.classList.remove('text-slate-400');
+                selectedBtn.classList.add('bg-cyan-500/20', 'text-cyan-300', 'border', 'border-cyan-500/40', 'font-semibold');
+                simSpeed = parseFloat(selectedBtn.dataset.speed);
+            });
+        });
+
+        // Sliders Input Events
+        [sliderMarsR, sliderEcc, sliderTraceLen].forEach(slider => {
+            slider.addEventListener('input', () => {
+                updateUIValues();
+                if (slider === sliderMarsR || slider === sliderEcc) {
+                    rosettePath = []; // clear path on orbit parameter change for clarity
+                }
+            });
+        });
+
+        // Checkboxes change listeners
+        [chkSightlines, chkSunOrbit, chkGlow].forEach(chk => {
+            chk.addEventListener('change', () => stepSimulation(false));
+        });
+
+        // Initial launch setup
+        window.onload = () => {
+            resizeCanvases();
+            updateUIValues();
+            stepSimulation(false);
+            animate();
+        };
+    </script>
+</body>
+</html>
