@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fisica: Moto di Puro Rotolamento e Cambio SDR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        .math-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        canvas {
+            background: #1e293b;
+            border-radius: 0.75rem;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <!-- Header Section -->
+    <header class="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/30">
+                    <i class="fa-solid fa-rotate text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white">Moto di Puro Rotolamento e Cambio SDR</h1>
+                    <p class="text-xs text-slate-400">Confronto del scorrimento del terreno nei due Sistemi di Riferimento</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-play" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg transition-all shadow-lg shadow-indigo-600/30">
+                    <i class="fa-solid fa-pause" id="play-icon"></i>
+                    <span id="play-text">Pausa</span>
+                </button>
+                <button id="btn-reset" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg transition-all border border-slate-700">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Reset</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 mt-6 space-y-6">
+
+        <!-- Simulation Viewports -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Left Viewport: Moving Frame (Solidale al Centro C) -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3 relative">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block"></span>
+                        <h2 class="font-bold text-slate-200">SDR Solidale al Centro $S'$</h2>
+                    </div>
+                    <span class="text-xs px-2.5 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full font-mono">
+                        Il Terreno Scorre all'Indietro
+                    </span>
+                </div>
+                <div class="relative w-full aspect-[4/3] flex items-center justify-center">
+                    <canvas id="canvas-sdr-moving" class="w-full h-full"></canvas>
+                </div>
+                <div class="bg-slate-900/60 p-3 rounded-xl text-xs space-y-1 text-slate-400">
+                    <div class="flex justify-between">
+                        <span>Velocità del Centro ($v_C'$):</span>
+                        <span class="math-font text-slate-200">0 px/s (Fermo)</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Velocità Apparente Terreno:</span>
+                        <span class="math-font text-indigo-300" id="val-vground-readout">-v_C (Verso Sinistra)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Viewport: Lab Frame (Solidale al Suolo) -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3 relative">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                        <h2 class="font-bold text-slate-200">SDR del Suolo / Laboratorio $S$</h2>
+                    </div>
+                    <span class="text-xs px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full font-mono">
+                        La Ruota Avanza sul Terreno Fisso
+                    </span>
+                </div>
+                <div class="relative w-full aspect-[4/3] flex items-center justify-center">
+                    <canvas id="canvas-sdr-lab" class="w-full h-full"></canvas>
+                </div>
+                <div class="bg-slate-900/60 p-3 rounded-xl text-xs space-y-1 text-slate-400">
+                    <div class="flex justify-between">
+                        <span>Velocità del Centro ($v_C$):</span>
+                        <span class="math-font text-emerald-300" id="val-vc-readout">v_C = ωR</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Velocità Punto di Contatto ($v_P$):</span>
+                        <span class="math-font text-emerald-400 font-bold">0 px/s (A Riposo Istantaneo)</span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Controls Panel -->
+        <section class="glass-panel p-5 rounded-2xl space-y-5">
+            <h3 class="font-semibold text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-2">
+                <i class="fa-solid fa-sliders text-indigo-400"></i> Parametri e Opzioni
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Angular Speed Slider -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <label for="slider-omega" class="text-slate-300 font-medium">Velocità Angolare ($\omega$)</label>
+                        <span id="omega-value" class="math-font text-indigo-400 font-bold">1.5 rad/s</span>
+                    </div>
+                    <input type="range" id="slider-omega" min="0.2" max="3.5" step="0.1" value="1.5" 
+                           class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                </div>
+
+                <!-- Wheel Radius Slider -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <label for="slider-radius" class="text-slate-300 font-medium">Raggio della Ruota ($R$)</label>
+                        <span id="radius-value" class="math-font text-indigo-400 font-bold">65 px</span>
+                    </div>
+                    <input type="range" id="slider-radius" min="40" max="85" step="1" value="65" 
+                           class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                </div>
+
+                <!-- Interactive Toggles Column 1 -->
+                <div class="space-y-2 flex flex-col justify-center">
+                    <label class="flex items-center gap-3 cursor-pointer text-xs text-slate-300">
+                        <input type="checkbox" id="check-vectors" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-0 bg-slate-900 border-slate-700">
+                        <span>Mostra Vettori Velocità ($\vec{v}$)</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer text-xs text-slate-300">
+                        <input type="checkbox" id="check-trace" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-0 bg-slate-900 border-slate-700">
+                        <span>Mostra Traiettoria (Cicloide)</span>
+                    </label>
+                </div>
+
+                <!-- Interactive Toggles Column 2 -->
+                <div class="space-y-2 flex flex-col justify-center">
+                    <label class="flex items-center gap-3 cursor-pointer text-xs text-slate-300">
+                        <input type="checkbox" id="check-grid" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-0 bg-slate-900 border-slate-700">
+                        <span>Mostra Griglia di Riferimento</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer text-xs text-slate-300">
+                        <input type="checkbox" id="check-texture" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-0 bg-slate-900 border-slate-700">
+                        <span>Mostra Dettagli Texture Terreno</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            isRunning: true,
+            omega: 1.5,      // angular velocity (rad/s)
+            radius: 65,      // wheel radius (px)
+            angle: 0,        // current rotation angle (rad)
+            showVectors: true,
+            showTrace: true,
+            showGrid: true,
+            showTexture: true,
+            tracePointsLab: [],
+            tracePointsMoving: [],
+            maxTraceLength: 450
+        };
+
+        // --- DOM Elements ---
+        const canvasMoving = document.getElementById('canvas-sdr-moving');
+        const canvasLab = document.getElementById('canvas-sdr-lab');
+        const ctxMoving = canvasMoving.getContext('2d');
+        const ctxLab = canvasLab.getContext('2d');
+
+        const btnPlay = document.getElementById('btn-play');
+        const playIcon = document.getElementById('play-icon');
+        const playText = document.getElementById('play-text');
+        const btnReset = document.getElementById('btn-reset');
+
+        const sliderOmega = document.getElementById('slider-omega');
+        const sliderRadius = document.getElementById('slider-radius');
+        const omegaVal = document.getElementById('omega-value');
+        const radiusVal = document.getElementById('radius-value');
+        const vcReadout = document.getElementById('val-vc-readout');
+        const vgroundReadout = document.getElementById('val-vground-readout');
+
+        const checkVectors = document.getElementById('check-vectors');
+        const checkTrace = document.getElementById('check-trace');
+        const checkGrid = document.getElementById('check-grid');
+        const checkTexture = document.getElementById('check-texture');
+
+        // --- Resize Canvas Resolution Handling ---
+        function resizeCanvases() {
+            [canvasMoving, canvasLab].forEach(canvas => {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width * window.devicePixelRatio;
+                canvas.height = rect.height * window.devicePixelRatio;
+            });
+        }
+
+        window.addEventListener('resize', resizeCanvases);
+        resizeCanvases();
+
+        // --- Event Listeners ---
+        btnPlay.addEventListener('click', () => {
+            state.isRunning = !state.isRunning;
+            if (state.isRunning) {
+                playIcon.className = 'fa-solid fa-pause';
+                playText.textContent = 'Pausa';
+            } else {
+                playIcon.className = 'fa-solid fa-play';
+                playText.textContent = 'Avvia';
+            }
+        });
+
+        btnReset.addEventListener('click', () => {
+            state.angle = 0;
+            state.tracePointsLab = [];
+            state.tracePointsMoving = [];
+        });
+
+        sliderOmega.addEventListener('input', (e) => {
+            state.omega = parseFloat(e.target.value);
+            omegaVal.textContent = `${state.omega.toFixed(1)} rad/s`;
+            updateReadouts();
+        });
+
+        sliderRadius.addEventListener('input', (e) => {
+            state.radius = parseInt(e.target.value);
+            radiusVal.textContent = `${state.radius} px`;
+            state.tracePointsLab = [];
+            state.tracePointsMoving = [];
+            updateReadouts();
+        });
+
+        function updateReadouts() {
+            const vc = (state.omega * state.radius).toFixed(0);
+            vcReadout.textContent = `v_C = ${vc} px/s`;
+            vgroundReadout.textContent = `-${vc} px/s (Sinistra)`;
+        }
+
+        checkVectors.addEventListener('change', (e) => state.showVectors = e.target.checked);
+        checkTrace.addEventListener('change', (e) => state.showTrace = e.target.checked);
+        checkGrid.addEventListener('change', (e) => state.showGrid = e.target.checked);
+        checkTexture.addEventListener('change', (e) => state.showTexture = e.target.checked);
+
+        // Vector Arrow Drawing Helper
+        function drawArrow(ctx, fromX, fromY, toX, toY, color, width = 2, label = '') {
+            const headlen = 8;
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const angle = Math.atan2(dy, dx);
+
+            if (Math.hypot(dx, dy) < 2) {
+                ctx.beginPath();
+                ctx.arc(fromX, fromY, 3, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+                return;
+            }
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = width;
+
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+
+            if (label) {
+                ctx.font = '11px "JetBrains Mono", monospace';
+                ctx.fillText(label, toX + 5 * Math.cos(angle), toY + 5 * Math.sin(angle));
+            }
+
+            ctx.restore();
+        }
+
+        // Draw Background Grid
+        function drawGrid(ctx, width, height, moveOffset = 0) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+
+            const gridSize = 30;
+            const offsetX = moveOffset % gridSize;
+
+            for (let x = -offsetX; x < width + gridSize; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y < height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // Draw Textured Ground (Asphalt, Stones, Distance Posts)
+        function drawTexturedGround(ctx, width, groundY, distOffset = 0, isStaticFrame = true) {
+            ctx.save();
+
+            // Ground Base Fill (Asphalt/Soil Dark Gradient)
+            const groundHeight = 80;
+            const gradient = ctx.createLinearGradient(0, groundY, 0, groundY + groundHeight);
+            gradient.addColorStop(0, '#1e293b');
+            gradient.addColorStop(0.15, '#0f172a');
+            gradient.addColorStop(1, '#020617');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, groundY, width, groundHeight);
+
+            // Surface Contact Line
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(width, groundY);
+            ctx.stroke();
+
+            if (state.showTexture) {
+                // Repeating Road / Ground Markings (Dashed Line on Surface)
+                const stripeWidth = 40;
+                const stripeGap = 30;
+                const totalPeriod = stripeWidth + stripeGap;
+                const offset = (distOffset) % totalPeriod;
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+                for (let x = -offset - totalPeriod; x < width + totalPeriod; x += totalPeriod) {
+                    ctx.fillRect(x, groundY + 8, stripeWidth, 4);
+                }
+
+                // Natural Stone / Gravel Texture
+                const pebblePatternSpacing = 90;
+                const pebbleOffset = (distOffset) % pebblePatternSpacing;
+
+                for (let x = -pebbleOffset - pebblePatternSpacing; x < width + pebblePatternSpacing; x += pebblePatternSpacing) {
+                    // Gravel cluster 1
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.2)';
+                    ctx.beginPath();
+                    ctx.arc(x + 15, groundY + 25, 2.5, 0, Math.PI * 2);
+                    ctx.arc(x + 45, groundY + 42, 1.8, 0, Math.PI * 2);
+                    ctx.arc(x + 75, groundY + 22, 2.2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Gravel cluster 2
+                    ctx.fillStyle = 'rgba(203, 213, 225, 0.15)';
+                    ctx.beginPath();
+                    ctx.arc(x + 30, groundY + 58, 3, 0, Math.PI * 2);
+                    ctx.arc(x + 60, groundY + 35, 2, 0, Math.PI * 2);
+                    ctx.arc(x + 85, groundY + 55, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Subtle vertical soil layer lines
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(x + 20, groundY + 15);
+                    ctx.lineTo(x + 10, groundY + 65);
+                    ctx.stroke();
+                }
+            }
+
+            ctx.restore();
+        }
+
+        let lastTime = performance.now();
+
+        function render(currentTime) {
+            const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
+            lastTime = currentTime;
+
+            if (state.isRunning) {
+                state.angle += state.omega * dt;
+            }
+
+            // ==========================================
+            // --- CANVAS 1: SDR Moving (Solidale al Centro S') ---
+            // ==========================================
+            const w1 = canvasMoving.width;
+            const h1 = canvasMoving.height;
+            ctxMoving.clearRect(0, 0, w1, h1);
+
+            const centerX1 = w1 / 2;
+            const centerY1 = h1 / 2 - 20;
+            const R = state.radius * (w1 / 500); // Dynamic scale
+            const groundY1 = centerY1 + R;
+            const distTraveled1 = state.angle * R;
+
+            if (state.showGrid) drawGrid(ctxMoving, w1, h1, 0);
+
+            // Ground moves backwards in S' frame
+            drawTexturedGround(ctxMoving, w1, groundY1, -distTraveled1, false);
+
+            // Wheel Body
+            ctxMoving.beginPath();
+            ctxMoving.arc(centerX1, centerY1, R, 0, Math.PI * 2);
+            ctxMoving.fillStyle = 'rgba(99, 102, 241, 0.1)';
+            ctxMoving.fill();
+            ctxMoving.strokeStyle = '#6366f1';
+            ctxMoving.lineWidth = 3;
+            ctxMoving.stroke();
+
+            // Center Point C
+            ctxMoving.beginPath();
+            ctxMoving.arc(centerX1, centerY1, 5, 0, Math.PI * 2);
+            ctxMoving.fillStyle = '#f8fafc';
+            ctxMoving.fill();
+
+            // Wheel Spokes
+            const numSpokes = 8;
+            for (let i = 0; i < numSpokes; i++) {
+                const spokeAngle = state.angle + (i * Math.PI * 2 / numSpokes);
+                ctxMoving.beginPath();
+                ctxMoving.moveTo(centerX1, centerY1);
+                ctxMoving.lineTo(centerX1 + R * Math.sin(spokeAngle), centerY1 + R * Math.cos(spokeAngle));
+                ctxMoving.strokeStyle = 'rgba(99, 102, 241, 0.35)';
+                ctxMoving.lineWidth = 2;
+                ctxMoving.stroke();
+            }
+
+            // Tracking Red Point P
+            const pointX1 = centerX1 + R * Math.sin(state.angle);
+            const pointY1 = centerY1 + R * Math.cos(state.angle);
+
+            // Record Trace for S' (Circle)
+            if (state.isRunning) {
+                state.tracePointsMoving.push({ x: pointX1, y: pointY1 });
+                if (state.tracePointsMoving.length > state.maxTraceLength) {
+                    state.tracePointsMoving.shift();
+                }
+            }
+
+            // Draw Trace (Circular)
+            if (state.showTrace && state.tracePointsMoving.length > 1) {
+                ctxMoving.beginPath();
+                ctxMoving.moveTo(state.tracePointsMoving[0].x, state.tracePointsMoving[0].y);
+                for (let i = 1; i < state.tracePointsMoving.length; i++) {
+                    ctxMoving.lineTo(state.tracePointsMoving[i].x, state.tracePointsMoving[i].y);
+                }
+                ctxMoving.strokeStyle = '#f43f5e';
+                ctxMoving.lineWidth = 2.5;
+                ctxMoving.stroke();
+            }
+
+            // Draw Red Point
+            ctxMoving.beginPath();
+            ctxMoving.arc(pointX1, pointY1, 6, 0, Math.PI * 2);
+            ctxMoving.fillStyle = '#f43f5e';
+            ctxMoving.fill();
+
+            // Velocity Vectors in S'
+            if (state.showVectors) {
+                const vectorScale = 0.5;
+                const vRotMagnitude = state.omega * R * vectorScale;
+
+                // Tangential velocity vector for Red Point in S'
+                const vx1 = vRotMagnitude * Math.cos(state.angle);
+                const vy1 = -vRotMagnitude * Math.sin(state.angle);
+                drawArrow(ctxMoving, pointX1, pointY1, pointX1 + vx1, pointY1 + vy1, '#38bdf8', 2, "v'");
+            }
+
+
+            // ==========================================
+            // --- CANVAS 2: SDR Lab / Ground (S) ---
+            // ==========================================
+            const w2 = canvasLab.width;
+            const h2 = canvasLab.height;
+            ctxLab.clearRect(0, 0, w2, h2);
+
+            const distTraveled2 = state.angle * R;
+            const groundY2 = h2 * 0.75;
+            const centerY2 = groundY2 - R;
+            
+            // Loop wheel horizontally across screen
+            const margin = R * 2;
+            const effectiveWidth = w2 + 2 * margin;
+            const centerX2 = ((distTraveled2 + margin) % effectiveWidth) - margin;
+
+            if (state.showGrid) drawGrid(ctxLab, w2, h2, distTraveled2);
+
+            // Static ground in Lab frame
+            drawTexturedGround(ctxLab, w2, groundY2, 0, true);
+
+            // Wheel Body in S
+            ctxLab.beginPath();
+            ctxLab.arc(centerX2, centerY2, R, 0, Math.PI * 2);
+            ctxLab.fillStyle = 'rgba(16, 185, 129, 0.1)';
+            ctxLab.fill();
+            ctxLab.strokeStyle = '#10b981';
+            ctxLab.lineWidth = 3;
+            ctxLab.stroke();
+
+            // Center Point C
+            ctxLab.beginPath();
+            ctxLab.arc(centerX2, centerY2, 5, 0, Math.PI * 2);
+            ctxLab.fillStyle = '#f8fafc';
+            ctxLab.fill();
+
+            // Wheel Spokes
+            for (let i = 0; i < numSpokes; i++) {
+                const spokeAngle = state.angle + (i * Math.PI * 2 / numSpokes);
+                ctxLab.beginPath();
+                ctxLab.moveTo(centerX2, centerY2);
+                ctxLab.lineTo(centerX2 + R * Math.sin(spokeAngle), centerY2 + R * Math.cos(spokeAngle));
+                ctxLab.strokeStyle = 'rgba(16, 185, 129, 0.35)';
+                ctxLab.lineWidth = 2;
+                ctxLab.stroke();
+            }
+
+            // Red Point Position in S (Cycloid)
+            const pointX2 = centerX2 + R * Math.sin(state.angle);
+            const pointY2 = centerY2 + R * Math.cos(state.angle);
+
+            // Record Trace Points in S
+            if (state.isRunning) {
+                if (state.tracePointsLab.length > 0) {
+                    const lastPt = state.tracePointsLab[state.tracePointsLab.length - 1];
+                    if (Math.abs(pointX2 - lastPt.x) > w2 / 2) {
+                        state.tracePointsLab = []; // reset trace on loop
+                    }
+                }
+                state.tracePointsLab.push({ x: pointX2, y: pointY2 });
+                if (state.tracePointsLab.length > state.maxTraceLength) {
+                    state.tracePointsLab.shift();
+                }
+            }
+
+            // Draw Cycloid Trace
+            if (state.showTrace && state.tracePointsLab.length > 1) {
+                ctxLab.beginPath();
+                ctxLab.moveTo(state.tracePointsLab[0].x, state.tracePointsLab[0].y);
+                for (let i = 1; i < state.tracePointsLab.length; i++) {
+                    ctxLab.lineTo(state.tracePointsLab[i].x, state.tracePointsLab[i].y);
+                }
+                ctxLab.strokeStyle = '#f43f5e';
+                ctxLab.lineWidth = 2.5;
+                ctxLab.stroke();
+            }
+
+            // Draw Red Point
+            ctxLab.beginPath();
+            ctxLab.arc(pointX2, pointY2, 6, 0, Math.PI * 2);
+            ctxLab.fillStyle = '#f43f5e';
+            ctxLab.fill();
+
+            // Velocity Vectors in S
+            if (state.showVectors) {
+                const vectorScale = 0.5;
+                const vTrans = state.omega * R * vectorScale;
+
+                // Center Translation Vector v_C
+                drawArrow(ctxLab, centerX2, centerY2, centerX2 + vTrans, centerY2, '#10b981', 2, 'v_C');
+
+                // Velocity Vectors on Red Point
+                const vRotX = vTrans * Math.cos(state.angle);
+                const vRotY = -vTrans * Math.sin(state.angle);
+                
+                // Rotational component v' (blue)
+                drawArrow(ctxLab, pointX2, pointY2, pointX2 + vRotX, pointY2 + vRotY, '#38bdf8', 1.5, "v'");
+
+                // Translational component v_C (green)
+                drawArrow(ctxLab, pointX2, pointY2, pointX2 + vTrans, pointY2, '#10b981', 1.5, 'v_C');
+
+                // Resultant Total Velocity v_lab = v' + v_C (amber)
+                const vTotalX = vRotX + vTrans;
+                const vTotalY = vRotY;
+                drawArrow(ctxLab, pointX2, pointY2, pointX2 + vTotalX, pointY2 + vTotalY, '#f59e0b', 2.5, 'v_tot');
+
+                // Contact Point Highlight (v = 0)
+                const contactX = centerX2;
+                const contactY = groundY2;
+                ctxLab.beginPath();
+                ctxLab.arc(contactX, contactY, 4, 0, Math.PI * 2);
+                ctxLab.fillStyle = '#e11d48';
+                ctxLab.fill();
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // Start loop
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>
