@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulazione Piano 3D in Oxyz</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js (versione stabile) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls con caricamento sicuro compatibile con r128 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        input[type=range] {
+            accent-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden select-none">
+
+    <!-- Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full"></div>
+
+    <!-- Interface Panel Left -->
+    <div class="absolute top-4 left-4 z-20 w-80 sm:w-96 bg-slate-900/90 backdrop-blur-md p-5 rounded-2xl border border-slate-700 shadow-2xl max-h-[92vh] overflow-y-auto">
+        
+        <!-- Header -->
+        <div class="mb-4">
+            <h1 class="text-xl font-bold text-blue-400 flex items-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+                Piano nello Spazio $Oxyz$
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">Equazione cartesiana del piano: <span class="font-mono text-slate-200">ax + by + cz + d = 0</span></p>
+        </div>
+
+        <!-- Displays Equazione e Vettore -->
+        <div class="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 text-center mb-5 shadow-inner">
+            <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Equazione Attuale</div>
+            <div id="eq-display" class="text-lg font-mono font-bold text-sky-300">x + y + z = 0</div>
+            
+            <div class="mt-2 pt-2 border-t border-slate-800/80 flex justify-center items-center gap-2">
+                <span class="text-xs text-emerald-400 font-mono font-semibold" id="vec-display">n⃗ = (1, 1, 1)</span>
+            </div>
+        </div>
+
+        <!-- Controlli Slider + Number Inputs -->
+        <div class="space-y-3.5">
+            
+            <!-- Parameter a -->
+            <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                <div class="flex justify-between items-center mb-1 text-xs">
+                    <label class="font-bold text-red-400 flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
+                        Coeff. a (X):
+                    </label>
+                    <input type="number" id="num-a" value="1" step="0.5" min="-10" max="10" 
+                        class="w-16 bg-slate-900 border border-slate-600 rounded text-center text-xs py-0.5 text-white font-mono focus:border-blue-500 outline-none">
+                </div>
+                <input type="range" id="range-a" min="-10" max="10" step="0.1" value="1" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <!-- Parameter b -->
+            <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                <div class="flex justify-between items-center mb-1 text-xs">
+                    <label class="font-bold text-green-400 flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span>
+                        Coeff. b (Y):
+                    </label>
+                    <input type="number" id="num-b" value="1" step="0.5" min="-10" max="10" 
+                        class="w-16 bg-slate-900 border border-slate-600 rounded text-center text-xs py-0.5 text-white font-mono focus:border-blue-500 outline-none">
+                </div>
+                <input type="range" id="range-b" min="-10" max="10" step="0.1" value="1" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <!-- Parameter c -->
+            <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                <div class="flex justify-between items-center mb-1 text-xs">
+                    <label class="font-bold text-blue-400 flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
+                        Coeff. c (Z):
+                    </label>
+                    <input type="number" id="num-c" value="1" step="0.5" min="-10" max="10" 
+                        class="w-16 bg-slate-900 border border-slate-600 rounded text-center text-xs py-0.5 text-white font-mono focus:border-blue-500 outline-none">
+                </div>
+                <input type="range" id="range-c" min="-10" max="10" step="0.1" value="1" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <!-- Parameter d -->
+            <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                <div class="flex justify-between items-center mb-1 text-xs">
+                    <label class="font-bold text-amber-400 flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
+                        Termine Noto d:
+                    </label>
+                    <input type="number" id="num-d" value="0" step="0.5" min="-15" max="15" 
+                        class="w-16 bg-slate-900 border border-slate-600 rounded text-center text-xs py-0.5 text-white font-mono focus:border-blue-500 outline-none">
+                </div>
+                <input type="range" id="range-d" min="-15" max="15" step="0.1" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+        </div>
+
+        <!-- Presets e Opzioni -->
+        <div class="mt-4 pt-3 border-t border-slate-700/80 space-y-3">
+            <div class="flex items-center justify-between text-xs text-slate-300">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-grid" checked class="rounded bg-slate-800 border-slate-600 text-blue-600">
+                    Mostra Griglia $XZ$
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-normal" checked class="rounded bg-slate-800 border-slate-600 text-blue-600">
+                    Vettori Normali
+                </label>
+            </div>
+
+            <div class="text-[11px] font-semibold text-slate-400">Piani Notevoli (Esempi):</div>
+            <div class="grid grid-cols-2 gap-1.5 text-xs">
+                <button onclick="applyPreset(0,0,1,0)" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded border border-slate-700 text-slate-200 transition">Piano XY ($z=0$)</button>
+                <button onclick="applyPreset(1,0,0,0)" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded border border-slate-700 text-slate-200 transition">Piano YZ ($x=0$)</button>
+                <button onclick="applyPreset(0,1,0,0)" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded border border-slate-700 text-slate-200 transition">Piano XZ ($y=0$)</button>
+                <button onclick="applyPreset(1,1,1,0)" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded border border-slate-700 text-slate-200 transition">$x+y+z=0$</button>
+            </div>
+
+            <button id="btn-reset-cam" class="w-full bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 text-xs py-2 rounded-lg border border-blue-500/30 transition flex items-center justify-center gap-2 font-medium">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Ripristina Vista Telecamera
+            </button>
+        </div>
+    </div>
+
+    <!-- Info Legenda Basso a Destra -->
+    <div class="absolute bottom-4 right-4 z-20 bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-700 text-xs flex gap-4">
+        <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="font-bold text-red-400">Asse X</span></div>
+        <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="font-bold text-green-400">Asse Y</span></div>
+        <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span class="font-bold text-blue-400">Asse Z</span></div>
+    </div>
+
+    <!-- Indicazioni di controllo Mouse -->
+    <div class="absolute top-4 right-4 z-20 bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-xl border border-slate-700 text-xs text-slate-300 hidden md:block">
+        🖱️ <b>Ruota:</b> Tasto sinistro | <b>Trasla:</b> Tasto destro | <b>Zoom:</b> Rotellina
+    </div>
+
+    <!-- Script Logica 3D completa e autonoma -->
+    <script>
+        let scene, camera, renderer, controls;
+        let planeMesh, planeWireframe, normalArrowPlane, normalArrowOrigin, gridHelper;
+
+        let state = {
+            a: 1,
+            b: 1,
+            c: 1,
+            d: 0
+        };
+
+        // Funzione helper per creare etichette di testo 3D (Sprite)
+        function createTextSprite(text, color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = color;
+            ctx.font = 'Bold 80px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 64, 64);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(1.5, 1.5, 1);
+            return sprite;
+        }
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // 1. Scena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(12, 10, 14);
+
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // 4. Controlli Orbit
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // 5. Illuminazione
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(15, 25, 15);
+            scene.add(dirLight);
+
+            // 6. Costruzione degli Assi
+            buildAxes();
+
+            // 7. Costruzione del Piano
+            buildPlane();
+
+            // 8. Costruzione Vettori Normali
+            buildNormals();
+
+            // Event Listeners
+            setupEventListeners();
+
+            // Aggiorna inizialmente
+            updateAll();
+
+            // Loop di rendering
+            animate();
+        }
+
+        // Creazione Assi Cartesiani
+        function buildAxes() {
+            const axisLength = 12;
+            const headLength = 0.6;
+            const headWidth = 0.35;
+
+            // Asse X - Rosso
+            const xAxis = new THREE.ArrowHelper(
+                new THREE.Vector3(1, 0, 0),
+                new THREE.Vector3(-axisLength, 0, 0),
+                axisLength * 2,
+                0xef4444,
+                headLength,
+                headWidth
+            );
+            scene.add(xAxis);
+
+            // Label X
+            const labelX = createTextSprite('X', '#ef4444');
+            labelX.position.set(axisLength + 0.8, 0, 0);
+            scene.add(labelX);
+
+            // Asse Y - Verde
+            const yAxis = new THREE.ArrowHelper(
+                new THREE.Vector3(0, 1, 0),
+                new THREE.Vector3(0, -axisLength, 0),
+                axisLength * 2,
+                0x22c55e,
+                headLength,
+                headWidth
+            );
+            scene.add(yAxis);
+
+            // Label Y
+            const labelY = createTextSprite('Y', '#22c55e');
+            labelY.position.set(0, axisLength + 0.8, 0);
+            scene.add(labelY);
+
+            // Asse Z - Blu
+            const zAxis = new THREE.ArrowHelper(
+                new THREE.Vector3(0, 0, 1),
+                new THREE.Vector3(0, 0, -axisLength),
+                axisLength * 2,
+                0x3b82f6,
+                headLength,
+                headWidth
+            );
+            scene.add(zAxis);
+
+            // Label Z
+            const labelZ = createTextSprite('Z', '#3b82f6');
+            labelZ.position.set(0, 0, axisLength + 0.8);
+            scene.add(labelZ);
+
+            // Griglia Oxz base
+            gridHelper = new THREE.GridHelper(24, 24, 0x475569, 0x334155);
+            gridHelper.position.y = -0.01;
+            scene.add(gridHelper);
+        }
+
+        // Creazione Oggetto Piano
+        function buildPlane() {
+            const geometry = new THREE.PlaneGeometry(14, 14, 12, 12);
+            
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x38bdf8,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.6,
+                shininess: 90
+            });
+
+            planeMesh = new THREE.Mesh(geometry, material);
+
+            // Wireframe per evidenziare le linee della superficie
+            const wireGeo = new THREE.WireframeGeometry(geometry);
+            const wireMat = new THREE.LineBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.35 });
+            planeWireframe = new THREE.LineSegments(wireGeo, wireMat);
+            planeMesh.add(planeWireframe);
+
+            scene.add(planeMesh);
+        }
+
+        // Creazione Vettori Normali n(a,b,c)
+        function buildNormals() {
+            // Normale dal piano (Verde Smeraldo)
+            normalArrowPlane = new THREE.ArrowHelper(
+                new THREE.Vector3(0, 1, 0),
+                new THREE.Vector3(0, 0, 0),
+                3,
+                0x10b981,
+                0.5,
+                0.25
+            );
+            scene.add(normalArrowPlane);
+
+            // Normale dall'origine O(0,0,0) (Giallo Ambra)
+            normalArrowOrigin = new THREE.ArrowHelper(
+                new THREE.Vector3(0, 1, 0),
+                new THREE.Vector3(0, 0, 0),
+                3,
+                0xf59e0b,
+                0.5,
+                0.25
+            );
+            scene.add(normalArrowOrigin);
+        }
+
+        // Aggiorna posizione, orientamento e testi in base a (a,b,c,d)
+        function updateAll() {
+            const { a, b, c, d } = state;
+
+            // Se i vettori normali sono nulli
+            const normLengthSq = a * a + b * b + c * c;
+            if (normLengthSq === 0) {
+                planeMesh.visible = false;
+                normalArrowPlane.visible = false;
+                normalArrowOrigin.visible = false;
+                document.getElementById('eq-display').innerText = "Impossibile (a=b=c=0)";
+                return;
+            }
+
+            planeMesh.visible = true;
+
+            // Vettore normale
+            const normal = new THREE.Vector3(a, b, c);
+            const len = normal.length();
+            const unitNormal = normal.clone().normalize();
+
+            // Calcolo di un punto appartente al piano: P0 = -d * n / ||n||^2
+            const pointOnPlane = unitNormal.clone().multiplyScalar(-d / len);
+
+            // Applica posizione al piano
+            planeMesh.position.copy(pointOnPlane);
+
+            // Orientamento: La geometria base di PlaneGeometry ha normale default (0, 0, 1)
+            const defaultNormal = new THREE.Vector3(0, 0, 1);
+            const quaternion = new THREE.Quaternion();
+            quaternion.setFromUnitVectors(defaultNormal, unitNormal);
+            planeMesh.quaternion.copy(quaternion);
+
+            // Gestione visibilità delle frecce
+            const showNormals = document.getElementById('chk-normal').checked;
+            normalArrowPlane.visible = showNormals;
+            normalArrowOrigin.visible = showNormals;
+
+            if (showNormals) {
+                const arrowLen = Math.min(Math.max(len * 0.7, 2.0), 6.0);
+
+                // Freccia applicata al piano
+                normalArrowPlane.setDirection(unitNormal);
+                normalArrowPlane.position.copy(pointOnPlane);
+                normalArrowPlane.setLength(arrowLen, 0.5, 0.25);
+
+                // Freccia dall'origine
+                normalArrowOrigin.setDirection(unitNormal);
+                normalArrowOrigin.position.set(0, 0, 0);
+                normalArrowOrigin.setLength(arrowLen, 0.4, 0.2);
+            }
+
+            // Aggiorna stringhe nell'interfaccia
+            updateUI();
+        }
+
+        // Formatta l'equazione algebrica
+        function updateUI() {
+            const { a, b, c, d } = state;
+
+            let eqStr = "";
+
+            // Componente X
+            if (a !== 0) {
+                if (a === 1) eqStr += "x";
+                else if (a === -1) eqStr += "-x";
+                else eqStr += `${a}x`;
+            }
+
+            // Componente Y
+            if (b !== 0) {
+                if (eqStr !== "") {
+                    eqStr += b > 0 ? " + " : " - ";
+                    const absB = Math.abs(b);
+                    eqStr += absB === 1 ? "y" : `${absB}y`;
+                } else {
+                    if (b === 1) eqStr += "y";
+                    else if (b === -1) eqStr += "-y";
+                    else eqStr += `${b}y`;
+                }
+            }
+
+            // Componente Z
+            if (c !== 0) {
+                if (eqStr !== "") {
+                    eqStr += c > 0 ? " + " : " - ";
+                    const absC = Math.abs(c);
+                    eqStr += absC === 1 ? "z" : `${absC}z`;
+                } else {
+                    if (c === 1) eqStr += "z";
+                    else if (c === -1) eqStr += "-z";
+                    else eqStr += `${c}z`;
+                }
+            }
+
+            // Termine noto d
+            if (d !== 0) {
+                if (eqStr !== "") {
+                    eqStr += d > 0 ? " + " : " - ";
+                    eqStr += `${Math.abs(d)}`;
+                } else {
+                    eqStr += `${d}`;
+                }
+            } else if (eqStr === "") {
+                eqStr = "0";
+            }
+
+            eqStr += " = 0";
+
+            document.getElementById('eq-display').innerText = eqStr;
+            document.getElementById('vec-display').innerText = `n⃗ = (${a}, ${b}, ${c})`;
+        }
+
+        // Setup Event Listeners sugli elementi dell'UI
+        function setupEventListeners() {
+            ['a', 'b', 'c', 'd'].forEach(p => {
+                const range = document.getElementById(`range-${p}`);
+                const num = document.getElementById(`num-${p}`);
+
+                range.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    num.value = val;
+                    state[p] = val;
+                    updateAll();
+                });
+
+                num.addEventListener('change', (e) => {
+                    let val = parseFloat(e.target.value);
+                    if (isNaN(val)) val = 0;
+                    range.value = val;
+                    state[p] = val;
+                    updateAll();
+                });
+            });
+
+            // Toggle Griglia
+            document.getElementById('chk-grid').addEventListener('change', (e) => {
+                gridHelper.visible = e.target.checked;
+            });
+
+            // Toggle Vettori Normali
+            document.getElementById('chk-normal').addEventListener('change', () => {
+                updateAll();
+            });
+
+            // Reset Camera
+            document.getElementById('btn-reset-cam').addEventListener('click', () => {
+                camera.position.set(12, 10, 14);
+                controls.target.set(0, 0, 0);
+                controls.update();
+            });
+
+            // Resize evento
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // Funzione per impostare preset predefiniti
+        window.applyPreset = function(a, b, c, d) {
+            state = { a, b, c, d };
+            ['a', 'b', 'c', 'd'].forEach(p => {
+                document.getElementById(`range-${p}`).value = state[p];
+                document.getElementById(`num-${p}`).value = state[p];
+            });
+            updateAll();
+        };
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Avvio all'onload
+        window.onload = function() {
+            init();
+        };
+    </script>
+</body>
+</html>
